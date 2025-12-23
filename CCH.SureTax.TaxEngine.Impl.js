@@ -16,6 +16,18 @@ var lineFields = [];
 var headerFields = [];
 var cTaxMap = new SureTaxMap();
 
+function trackScript(nameFunction) {
+    // 1. Set the Start Time
+    var startTime = new Date().getTime();
+
+    var context = nlapiGetContext();
+    var remainingUsage = context.getRemainingUsage();
+
+    nlapiLogExecution('DEBUG at:' + startTime, 'Governance Check in function: ' + nameFunction, 'Remaining Usage Units: ' + remainingUsage);
+
+
+}
+
 /**
  * This is called every time NetSuite calculates tax.
  *
@@ -34,6 +46,7 @@ function calculateTax(input, output, notifications) {
     var isWebStore = (currentContext.getExecutionContext() == 'webapplication' || currentContext.getExecutionContext() == 'webstore');
 
     nlapiLogExecution('DEBUG', 'Is Web Store', isWebStore);
+    trackScript('Init calculateTax')
 
     if (!input.isTaxOutputOverridden() && !input.isTaxRegistrationOverridden()) {
         try {
@@ -167,6 +180,7 @@ function calculateTax(input, output, notifications) {
 
             notifications.addError(msg);
         }
+        trackScript('Finish calculateTax')
     }
 
     var end = new Date().getTime();
@@ -181,6 +195,8 @@ function calculateTax(input, output, notifications) {
  * @param {Object} output Object that the fields are added to.
  */
 function defineAdditionalFields(output) {
+
+    trackScript('Init defineAdditionalFields')
     var addFields = [];
 
     addFields.push('custbody_suretax_latest_transid');
@@ -215,6 +231,7 @@ function defineAdditionalFields(output) {
     nlapiLogExecution('DEBUG', 'Additional Fields Time', (end - start).toString());
 
     output.setArray(addFields);
+    trackScript('Finish defineAdditionalFields')
 }
 
 /**
@@ -280,6 +297,8 @@ function defineLineAdditionalFields(output) {
  * @memberof! CCH_SureTax_TaxEngine_Impl
  */
 function getDataExchangeFields() {
+
+    trackScript('Init getDataExchangeFields')
     // Find all of the records that have a field name defined.
     var columns = [];
     columns[0] = new nlobjSearchColumn('custrecord_suretax_fld_fieldname_so');
@@ -305,6 +324,7 @@ function getDataExchangeFields() {
             }
         }
     }
+    trackScript('Finish getDataExchangeFields')
 }
 
 /**
@@ -317,6 +337,7 @@ function getDataExchangeFields() {
  * @param {Object} event Information about what event happened on the transaction
  */
 function onTransactionEvent(input, event) {
+    trackScript('Init onTransactionEvent')
     // define plug-in functionality based on a transaction event
     var eventCode = event.getCode();
 
@@ -342,6 +363,8 @@ function onTransactionEvent(input, event) {
             finalizeTransInSureTax(input);
         }
     }
+
+    trackScript('Finish onTransactionEvent')
 }
 
 /**
@@ -352,6 +375,8 @@ function onTransactionEvent(input, event) {
  * @param {Object} input Information about the transaction that needs tax calculated
  */
 function finalizeTransInSureTax(input) {
+
+    trackScript('Init finalizeTransInSureTax')
     var subVal = (common.isSubsidiaryEnable()) ? input.getSubsidiary() : null;
     basicConfig = common.LoadConfiguration(subVal);
 
@@ -388,6 +413,8 @@ function finalizeTransInSureTax(input) {
 
     var response = api.postRequest(basicConfig.connection_settings.url, JSON.stringify(stxRequest));
     processResponse(response, stxRequest, input, null, 'PostRequest', false, true);
+
+    trackScript('Init finalizeTransInSureTax')
 }
 
 /**
@@ -458,6 +485,8 @@ function isValidNumber(number) {
  * @returns {Boolean} Returns true if the call was successful, false if it wasn't.
  */
 function processResponse(response, request, input, notifications, methodString, isCancel, isSaveEvent) {
+
+    trackScript('Init processResponse')
     if (isSaveEvent === undefined) {
         isSaveEvent = false;
     }
@@ -529,6 +558,7 @@ function processResponse(response, request, input, notifications, methodString, 
             }
         }
 
+        trackScript('Init processResponse')
         if (notifications != null) {
             // Add warnings for each item message.
             processItemMessages(response.ItemMessages, notifications);
@@ -570,6 +600,8 @@ function processItemMessages(messages, notifications) {
  * @namespace SureTaxMapObj
  */
 function SureTaxMap() {
+    
+    trackScript('Init SureTaxMap')
     this.Items = [];
 
     /**
@@ -727,6 +759,8 @@ function SureTaxMap() {
 
         return ret;
     };
+    
+    trackScript('finish SureTaxMap')
 }
 
 
@@ -739,6 +773,8 @@ function SureTaxMap() {
  * @param {Boolean} deleting Send true if the transaction is being deleted, false if it isn't.
  */
 function cancelSureTaxTrans(input, deleting) {
+    
+    trackScript('Init cancelSureTaxTrans')
     var stxTransId = common.getSureTaxTransactioIdFromLogId(common.getLatestCallLogId(input.getTransactionId(), input.getRecordType()));
 
     if (deleting && (!stxTransId || stxTransId <= 0)) {
@@ -767,4 +803,6 @@ function cancelSureTaxTrans(input, deleting) {
             nlapiLogExecution('AUDIT', 'Deleted Transaction', 'Deleted SureTax Transaction Id: ' + stxTransId);
         }
     }
+    
+    trackScript('finish cancelSureTaxTrans')
 }
